@@ -89,5 +89,5 @@ grammar G {
   token ws { \h* }
 }
 
-say do given G.parse: "input.txt".IO.slurp { .made };
+spurt "output.html", do given G.parse: "input.txt".IO.slurp { .made };
 
