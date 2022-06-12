@@ -7,8 +7,11 @@ b = a + 5 / 7
 // parenthesis
 c = (a / b) + (b * 2)
 
-// float literals
-_boo = 7.1E-10
+// floats
+d = 3.1425 + a
+
+// scientific notation
+e = 0.12345E-38
 
 // nested parenthesis
 _123 = ((1) * (2 / 3)) - (-4*(5 / a))
