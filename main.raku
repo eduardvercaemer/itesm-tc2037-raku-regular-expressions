@@ -14,19 +14,16 @@ my $template = q:to/END/;
       font-family: monospace;
       font-size: 1.2em;
    }
-   .COMMENT {
+   .comment {
       color: #abb2bf;
    }
-   .VARIABLE {
+   .variable {
       color: #61afef;
    }
-   .OP {
+   .op {
        color: #005757;
    }
-   .INTEGER {
-       color: #e06c75;
-   }
-   .FLOAT {
+   .number {
        color: #e06c75;
    }
   </style>
@@ -34,26 +31,61 @@ my $template = q:to/END/;
 </html>
 END
 
+sub w(Str $class, Str $content) of Str {
+  "<span class=\"code {$class}\">{$content}</span>"
+}
+
+sub collect($/, $elements) {
+  $elements.map: {
+    given $/{$_} {
+      when List { .map: *.made }
+      default { .?made // '' }
+    }
+  }
+}
+
 grammar G {
-  rule TOP { <line> [ \n <line> ]* { make '(:' } }
-  rule line { <assignment>? <comment>? }
+  rule TOP        { <line> [ \n <line> ]*
+                  { make sprintf $template, join "\n", collect $/, <line> } }
 
-  rule comment { '//' <text> }
+  rule line       { <assignment>? <comment>?
+                  { make join ' ', collect $/, <assignment comment> } }
 
-  rule assignment { <ident> '=' <expression> }
-  rule expression { <sign>? <value> [ <op> <value> ]* }
-  rule value { | <number>
-               | <ident>
-               | [ '(' <expression> ')' ] }
-  token number { \d+ [ \. \d+ [ 'E' <sign>? \d+ ]? ]? }
-  token sign { <[ \- \+ ]>? }
-  token op { <[ \+ \- \* \/ ]> }
+  rule comment    { '//' <text> 
+                  { make do w("comment") <==
+                    [~] '//', $<text>.made } }
 
-  token text { <-[\n]>* }
-  token ident { <ident-start> <ident-rest>* }
+  rule assignment { <ident> <assign> <expression>
+                  { make join ' ', collect $/, <ident assign expression> } }
 
-  token ident-start { <alpha> }
-  token ident-rest { <alnum> }
+  rule expression { <sign>? <value> [ <op> <value> ]*
+                  { make [~]
+                       $<sign>.?made // '', $<value>[0].made,
+                       [~] do for $<op> Z $<value>[1..*] -> [$op, $value]
+                       { [~] ' ', $op.made, ' ', $value.made } } }
+
+  rule value { | [ <number>
+                 { make [~] collect $/, <number> } ]
+               | [ <ident>
+                 { make [~] collect $/, <ident> } ]
+               | [ <oparen> <expression> <cparen>
+                 { make [~] collect $/, <oparen expression cparen> } ] }
+
+  token number { \d+ [ \. \d+ [ 'E' <[ \+ \- ]>? \d+ ]? ]?
+               { make w("number", $/.Str) } }
+
+  token ident { <alpha> <alnum>*
+              { make w("variable", $/.Str) } }
+
+  token assign { \=                { make w("op", $/.Str) } }
+  token oparen { \(                { make w("op", $/.Str) } }
+  token cparen { \)                { make w("op", $/.Str) } }
+  token op     { <[ \+ \- \* \/ ]> { make w("op", $/.Str) } }
+  token sign   { <[ \- \+ ]>?      { make w("op", $/.Str) } }
+
+  token text { <-[\n]>*
+             { make $/.Str } }
+
   token ws { \h* }
 }
 
